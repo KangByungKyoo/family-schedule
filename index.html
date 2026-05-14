@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가족 스케줄 알림판</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, 'Noto Sans KR', sans-serif;
+      background: #111827;
+      color: white;
+      min-height: 100vh;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-bar {
+      padding: 24px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .clock {
+      font-size: clamp(48px, 10vw, 120px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .date {
+      font-size: clamp(18px, 2.5vw, 32px);
+      color: #cbd5e1;
+      margin-top: 8px;
+    }
+
+    .edit-button {
+      border: 0;
+      background: #374151;
+      color: white;
+      padding: 14px 20px;
+      border-radius: 16px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .edit-button:hover {
+      background: #4b5563;
+    }
+
+    .main-board {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .job-label {
+      font-size: clamp(24px, 4vw, 54px);
+      color: #93c5fd;
+      margin-bottom: 24px;
+      font-weight: 700;
+    }
+
+    .job-text {
+      font-size: clamp(56px, 12vw, 160px);
+      font-weight: 900;
+      line-height: 1.15;
+      word-break: keep-all;
+    }
+
+    .job-time {
+      margin-top: 32px;
+      font-size: clamp(28px, 5vw, 72px);
+      color: #fde68a;
+      font-weight: 800;
+    }
+
+    .empty-message {
+      color: #cbd5e1;
+      font-size: clamp(28px, 6vw, 72px);
+      font-weight: 700;
+    }
+
+    .alarm-fullscreen {
+      position: fixed;
+      inset: 0;
+      background: #dc2626;
+      color: white;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      text-align: center;
+      padding: 32px;
+    }
+
+    .alarm-fullscreen.show {
+      display: flex;
+    }
+
+    .alarm-time {
+      font-size: clamp(48px, 10vw, 140px);
+      font-weight: 900;
+      margin-bottom: 32px;
+    }
+
+    .alarm-job {
+      font-size: clamp(56px, 13vw, 180px);
+      font-weight: 900;
+      line-height: 1.15;
+      word-break: keep-all;
+    }
+
+    .alarm-help {
+      margin-top: 40px;
+      font-size: clamp(18px, 3vw, 36px);
+      opacity: 0.9;
+    }
+
+    .editor-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(520px, 100vw);
+      height: 100vh;
+      background: white;
+      color: #111827;
+      z-index: 900;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      padding: 24px;
+      overflow-y: auto;
+      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .editor-panel.open {
+      transform: translateX(0);
+    }
+
+    .editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .editor-header h2 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .close-button {
+      border: 0;
+      background: #e5e7eb;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .schedule-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 52px;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    input[type="time"],
+    input[type="text"] {
+      width: 100%;
+      font-size: 18px;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+    }
+
+    .delete-button {
+      border: 0;
+      background: #fee2e2;
+      color: #991b1b;
+      font-size: 20px;
+      padding: 10px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      flex: 1;
+      border: 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-size: 18px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .primary-button {
+      background: #2563eb;
+      color: white;
+    }
+
+    .secondary-button {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .sound-section {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .sound-section label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .note {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 700px) {
+      .top-bar {
+        padding: 18px;
+      }
+
+      .edit-button {
+        font-size: 16px;
+        padding: 10px 14px;
+      }
+
+      .schedule-row {
+        grid-template-columns: 92px 1fr 46px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top-bar">
+      <div>
+        <div id="clock" class="clock">--:--</div>
+        <div id="date" class="date">----</div>
+      </div>
+      <button class="edit-button" onclick="openEditor()">스케줄 편집</button>
+    </header>
+
+    <main class="main-board">
+      <section id="currentJobBox">
+        <div class="job-label">지금 할 일</div>
+        <div id="currentJob" class="job-text">스케줄을 입력해주세요</div>
+        <div id="currentJobTime" class="job-time"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="alarmScreen" class="alarm-fullscreen" onclick="hideAlarm()">
+    <div>
+      <div id="alarmTime" class="alarm-time"></div>
+      <div id="alarmJob" class="alarm-job"></div>
+      <div class="alarm-help">화면을 누르면 알람 화면이 닫힙니다</div>
+    </div>
+  </div>
+
+  <aside id="editorPanel" class="editor-panel">
+    <div class="editor-header">
+      <h2>스케줄 편집</h2>
+      <button class="close-button" onclick="closeEditor()">닫기</button>
+    </div>
+
+    <div id="scheduleList"></div>
+
+    <div class="editor-actions">
+      <button class="secondary-button" onclick="addScheduleRow()">일정 추가</button>
+      <button class="primary-button" onclick="saveSchedules()">저장</button>
+    </div>
+
+    <section class="sound-section">
+      <label for="soundFile">알람 소리 선택</label>
+      <input id="soundFile" type="file" accept="audio/*" />
+      <div class="note">
+        태블릿 브라우저 정책상, 처음 한 번은 화면을 터치해야 소리가 정상 재생될 수 있습니다.<br />
+        소리를 선택하지 않으면 기본 삐 소리가 재생됩니다.
+      </div>
+    </section>
+  </aside>
+
+  <script>
+    const STORAGE_KEY = 'homeScheduleBoardSchedules';
+
+    let schedules = loadSchedules();
+    let lastAlarmKey = '';
+    let alarmTimeoutId = null;
+    let selectedAudioUrl = null;
+    let audioElement = null;
+
+    function loadSchedules() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (error) {
+          console.error('스케줄 불러오기 실패:', error);
+        }
+      }
+
+      return [
+        { time: '06:30', job: '엄마 기상' },
+        { time: '07:00', job: '주희 기상' },
+        { time: '08:00', job: '엄마, 주희, 주하 등교' },
+        { time: '21:00', job: '주희 세수, 양치질' },
+        { time: '21:30', job: '취침' }
+      ];
+    }
+
+    function saveSchedulesToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
+    }
+
+    function sortSchedules(list) {
+      return [...list].sort((a, b) => a.time.localeCompare(b.time));
+    }
+
+    function updateClockAndJob() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTime = `${hours}:${minutes}`;
+
+      document.getElementById('clock').textContent = currentTime;
+      document.getElementById('date').textContent = now.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+      });
+
+      updateCurrentJob(currentTime);
+      checkAlarm(currentTime);
+    }
+
+    function updateCurrentJob(currentTime) {
+      const sorted = sortSchedules(schedules).filter(item => item.time && item.job);
+
+      if (sorted.length === 0) {
+        document.getElementById('currentJob').textContent = '스케줄을 입력해주세요';
+        document.getElementById('currentJobTime').textContent = '';
+        return;
+      }
+
+      let current = null;
+
+      for (const item of sorted) {
+        if (item.time <= currentTime) {
+          current = item;
+        }
+      }
+
+      // 아직 오늘 첫 스케줄 전이면, 전날 마지막 스케줄을 계속 표시합니다.
+      if (!current) {
+        current = sorted[sorted.length - 1];
+      }
+
+      document.getElementById('currentJob').textContent = current.job;
+      document.getElementById('currentJobTime').textContent = current.time;
+    }
+
+    function checkAlarm(currentTime) {
+      const today = new Date().toISOString().slice(0, 10);
+      const matched = schedules.find(item => item.time === currentTime && item.job);
+
+      if (!matched) return;
+
+      const alarmKey = `${today}-${matched.time}-${matched.job}`;
+      if (lastAlarmKey === alarmKey) return;
+
+      lastAlarmKey = alarmKey;
+      showAlarm(matched);
+    }
+
+    function showAlarm(schedule) {
+      document.getElementById('alarmTime').textContent = schedule.time;
+      document.getElementById('alarmJob').textContent = schedule.job;
+      document.getElementById('alarmScreen').classList.add('show');
+
+      playAlarmSound();
+
+      clearTimeout(alarmTimeoutId);
+      alarmTimeoutId = setTimeout(() => {
+        hideAlarm();
+      }, 30000);
+    }
+
+    function hideAlarm() {
+      document.getElementById('alarmScreen').classList.remove('show');
+      stopAlarmSound();
+      clearTimeout(alarmTimeoutId);
+    }
+
+    function playAlarmSound() {
+      stopAlarmSound();
+
+      if (selectedAudioUrl) {
+        audioElement = new Audio(selectedAudioUrl);
+        audioElement.loop = true;
+        audioElement.play().catch(() => {
+          playBasicBeep();
+        });
+      } else {
+        playBasicBeep();
+      }
+    }
+
+    function stopAlarmSound() {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement = null;
+      }
+    }
+
+    function playBasicBeep() {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 880;
+      gain.gain.value = 0.15;
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+
+      audioElement = {
+        pause: () => {
+          oscillator.stop();
+          context.close();
+        },
+        currentTime: 0
+      };
+    }
+
+    function openEditor() {
+      renderScheduleRows();
+      document.getElementById('editorPanel').classList.add('open');
+    }
+
+    function closeEditor() {
+      document.getElementById('editorPanel').classList.remove('open');
+    }
+
+    function renderScheduleRows() {
+      const list = document.getElementById('scheduleList');
+      list.innerHTML = '';
+
+      sortSchedules(schedules).forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'schedule-row';
+        row.innerHTML = `
+          <input type="time" value="${item.time}" data-index="${index}" data-field="time" />
+          <input type="text" value="${escapeHtml(item.job)}" placeholder="할 일" data-index="${index}" data-field="job" />
+          <button class="delete-button" onclick="deleteScheduleRow(${index})">×</button>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function addScheduleRow() {
+      schedules = sortSchedules(readRowsFromEditor());
+      schedules.push({ time: '07:00', job: '' });
+      renderScheduleRows();
+    }
+
+    function deleteScheduleRow(index) {
+      schedules = sortSchedules(readRowsFromEditor());
+      schedules.splice(index, 1);
+      renderScheduleRows();
+    }
+
+    function readRowsFromEditor() {
+      const rows = document.querySelectorAll('.schedule-row');
+      return Array.from(rows).map(row => {
+        const timeInput = row.querySelector('input[data-field="time"]');
+        const jobInput = row.querySelector('input[data-field="job"]');
+        return {
+          time: timeInput.value,
+          job: jobInput.value.trim()
+        };
+      });
+    }
+
+    function saveSchedules() {
+      schedules = sortSchedules(readRowsFromEditor()).filter(item => item.time && item.job);
+      saveSchedulesToStorage();
+      closeEditor();
+      updateClockAndJob();
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    document.getElementById('soundFile').addEventListener('change', event => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (selectedAudioUrl) {
+        URL.revokeObjectURL(selectedAudioUrl);
+      }
+
+      selectedAudioUrl = URL.createObjectURL(file);
+    });
+
+    saveSchedulesToStorage();
+    updateClockAndJob();
+    setInterval(updateClockAndJob, 1000);
+  </script>
+</body>
+</html>
